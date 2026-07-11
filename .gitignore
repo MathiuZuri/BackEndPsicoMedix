@@ -1,0 +1,13 @@
+﻿# Artefactos de compilación de .NET
+bin/
+obj/
+
+# Carpetas de editores (Visual Studio / Rider / VS Code)
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+
+# Archivos de publicación o temporales
+*.useros
