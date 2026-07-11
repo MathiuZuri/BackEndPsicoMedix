@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);1591</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Seguridad y Criptografía -->
+        <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.4" />
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.17.0" />
+
+        <!-- Documentación de API (Swashbuckle para .NET 9) -->
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+
+        <!-- Base de Datos y Persistencia ORM (Homologados a la 9.0.4) -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.4" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+
+        <!-- Herramientas de Diseño para Migraciones -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.4">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.4">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+
+        <!-- Motor de Documentos PDF -->
+        <PackageReference Include="QuestPDF" Version="2026.2.4" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="DbFiles\" />
+      <Folder Include="Utils\" />
+    </ItemGroup>
+
+</Project>
