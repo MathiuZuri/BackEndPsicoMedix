@@ -1,11 +1,14 @@
-﻿using System.Security.Claims;
+﻿using System;
+using System.Collections.Generic;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using psicomedixMonolito.DTOs.Pacientes;
 using psicomedixMonolito.Enums;
-using psicomedixMonolito.Models;
+using psicomedixMonolito.Models; // Ajustado al namespace estándar de tus filtros de auditoría
 using psicomedixMonolito.Services;
-using psicomedixMonolito.Services.imp;
 using psicomedixMonolito.Utils.Authorization;
 using psicomedixMonolito.Utils.Filters;
 
@@ -64,6 +67,7 @@ public class PacientesController : ControllerBase
         var paciente = await _pacienteService.ObtenerPorIdAsync(id);
         if (paciente == null)
             throw new KeyNotFoundException("Paciente no encontrado.");
+            
         return Ok(ApiResponse<object>.Ok(paciente, "Paciente obtenido correctamente."));
     }
 
@@ -86,6 +90,7 @@ public class PacientesController : ControllerBase
         var paciente = await _pacienteService.ObtenerPorDniAsync(dni);
         if (paciente == null)
             throw new KeyNotFoundException("Paciente no encontrado.");
+            
         return Ok(ApiResponse<object>.Ok(paciente, "Paciente obtenido correctamente."));
     }
 
@@ -105,7 +110,7 @@ public class PacientesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Create([FromBody] CrearPacienteDto dto)
     {
-        // 🚀 Ajuste Monolítico: Extraemos el ID del usuario actual desde el Token JWT
+        // Extraemos el ID del usuario actual desde el Token JWT
         var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
                       User.FindFirst("sub")?.Value ??
                       User.FindFirst("usuarioId")?.Value ??

@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using psicomedixMonolito.Models.ATENCIONES;
+using psicomedixMonolito.Models.ATENCIONES.AtencionBase;
 
 namespace psicomedixMonolito.DbFiles.Data.Configurations;
 
@@ -26,9 +27,12 @@ public class AtencionConfiguration : IEntityTypeConfiguration<Atencion>
             .IsRequired();
 
         builder.Property(x => x.Estado)
-            .HasConversion<string>() // Asume que EstadoAtencion es un Enum
+            .HasConversion<string>() 
             .IsRequired()
             .HasMaxLength(30);
+
+        builder.Property(x => x.ObservacionesIniciales)
+            .HasColumnType("text");
 
         // ==========================================
         // RELACIONES CORE (Finanzas y Citas)
@@ -64,34 +68,36 @@ public class AtencionConfiguration : IEntityTypeConfiguration<Atencion>
             .OnDelete(DeleteBehavior.Restrict);
 
         // ========================================================
-        // RELACIONES MODULARES (Independientes)
+        // 🚀 NUEVAS RELACIONES MODULARES PSICOLÓGICAS (1 a 1)
         // ========================================================
-        
-        // Módulos 1 a 1
-        builder.HasOne(a => a.Anamnesis)
-            .WithOne(an => an.Atencion)
-            .HasForeignKey<Anamnesis>(an => an.AtencionId)
+        builder.HasOne(a => a.AnamnesisHistoria)
+            .WithOne(ah => ah.Atencion)
+            .HasForeignKey<PsicoAnamnesisHistoria>(ah => ah.AtencionId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(a => a.ImpresionDiagnostica)
-            .WithOne(id => id.Atencion)
-            .HasForeignKey<ImpresionDiagnostica>(id => id.AtencionId)
+        builder.HasOne(a => a.SomaticoVegetativo)
+            .WithOne(sv => sv.Atencion)
+            .HasForeignKey<PsicoSomaticoVegetativo>(sv => sv.AtencionId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Módulos 1 a N (Permite registrar múltiples durante una evolución)
-        builder.HasMany(a => a.ExamenesFisicos)
-            .WithOne(ef => ef.Atencion)
-            .HasForeignKey(ef => ef.AtencionId)
+        builder.HasOne(a => a.EscalasAnimo)
+            .WithOne(ea => ea.Atencion)
+            .HasForeignKey<PsicoEscalasAnimo>(ea => ea.AtencionId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasMany(a => a.TactosVaginales)
-            .WithOne(tv => tv.Atencion)
-            .HasForeignKey(tv => tv.AtencionId)
+        builder.HasOne(a => a.DesarrolloPsicosocial)
+            .WithOne(dp => dp.Atencion)
+            .HasForeignKey<PsicoDesarrolloPsicosocial>(dp => dp.AtencionId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasMany(a => a.Ecografias)
-            .WithOne(eco => eco.Atencion)
-            .HasForeignKey(eco => eco.AtencionId)
+        builder.HasOne(a => a.EvaluacionCognitiva)
+            .WithOne(ec => ec.Atencion)
+            .HasForeignKey<PsicoEvaluacionCognitiva>(ec => ec.AtencionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(a => a.DiagnosticoCierre)
+            .WithOne(dc => dc.Atencion)
+            .HasForeignKey<PsicoDiagnosticoCierre>(dc => dc.AtencionId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

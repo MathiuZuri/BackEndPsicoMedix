@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using psicomedixMonolito.DbFiles.Data;
 using psicomedixMonolito.DTOs.PDFsDto;
+using psicomedixMonolito.Enums;
 using psicomedixMonolito.Models;
 using psicomedixMonolito.Models.ATENCIONES;
 using psicomedixMonolito.Services.Interfacespdf;
@@ -16,11 +17,9 @@ namespace psicomedixMonolito.Controllers.pdfControladores;
 public class HistoriaClinicaController : ControllerBase
 {
     private readonly IHistoriaClinicaPdfService _pdfService;
-    private readonly ApplicationDbContext _context; // 🚀 Único punto de contacto con la persistencia en el monolito
+    private readonly ApplicationDbContext _context;
 
-    public HistoriaClinicaController(
-        IHistoriaClinicaPdfService pdfService,
-        ApplicationDbContext context)
+    public HistoriaClinicaController(IHistoriaClinicaPdfService pdfService, ApplicationDbContext context)
     {
         _pdfService = pdfService;
         _context = context;
@@ -29,12 +28,6 @@ public class HistoriaClinicaController : ControllerBase
     /// <summary>
     /// Genera y descarga la Historia Clínica completa de un paciente en PDF.
     /// </summary>
-    /// <remarks>
-    /// **Uso:** Permite obtener un documento formal con la ficha de identificación,
-    /// antecedentes, funciones vitales, examen obstétrico y las últimas atenciones.
-    /// Ideal para entregar al paciente o para expedientes médicos.
-    /// **Permiso requerido:** Aludido en la directiva de políticas de acceso.
-    /// </remarks>
     [HttpGet("paciente/{pacienteId:guid}")]
     [Authorize(Policy = PermisosPolicies.HistorialImprimir)]
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
@@ -42,7 +35,6 @@ public class HistoriaClinicaController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> DescargarHistoriaClinica(Guid pacienteId)
     {
-        // 🚀 Consulta Directa 1: Extraemos los datos del paciente y su relación uno a uno con el historial
         var paciente = await _context.Set<Paciente>()
             .Include(p => p.HistorialClinico)
             .AsNoTracking()
@@ -55,73 +47,70 @@ public class HistoriaClinicaController : ControllerBase
         if (historial == null)
             return NotFound(ApiResponse<object>.Error("El paciente no tiene historial clínico", 404));
 
-        // 🚀 Consulta Directa 2: Traemos las atenciones del paciente resolviendo todo el árbol clínico en un solo viaje
+        // Actualizado: Carga de forma hambrienta todas las nuevas sub-tablas del formulario psicológico
         var atencionesOrdenadas = await _context.Set<Atencion>()
             .Include(a => a.ServicioClinico)
             .Include(a => a.Doctor)
-            .Include(a => a.Anamnesis)
-            .Include(a => a.ExamenesFisicos)
-            .Include(a => a.ImpresionDiagnostica)
+            .Include(a => a.AnamnesisHistoria)
+            .Include(a => a.SomaticoVegetativo)
+            .Include(a => a.EscalasAnimo)
+            .Include(a => a.DesarrolloPsicosocial)
+            .Include(a => a.EvaluacionCognitiva)
+            .Include(a => a.DiagnosticoCierre)
             .Where(a => a.PacienteId == pacienteId)
             .OrderByDescending(a => a.FechaInicio)
             .AsNoTracking()
             .ToListAsync();
 
         var ultimaAtencion = atencionesOrdenadas.FirstOrDefault();
-        var anamnesis = ultimaAtencion?.Anamnesis;
-        
-        // Obtenemos el examen físico más reciente de la última atención registrada
-        var examenFisico = ultimaAtencion?.ExamenesFisicos?
-            .OrderByDescending(e => e.FechaHoraExamen)
-            .FirstOrDefault();
-            
-        var diagnostico = ultimaAtencion?.ImpresionDiagnostica;
+        var cierre = ultimaAtencion?.DiagnosticoCierre;
 
-        // Mapeo limpio directo al DTO plano de QuestPDF
+        var nombreFormateado = string.IsNullOrWhiteSpace(paciente.Nombres) 
+            ? "No registrado" 
+            : $"{paciente.Nombres} {paciente.Apellidos}".Trim();
+
+        var sexoFormateado = paciente.Genero == GeneroEvaluado.Masculino ? "MASCULINO" : "FEMENINO";
+
         var dto = new HistoriaClinicaPdfDto
         {
-            NombresApellidos = $"{paciente.Nombres} {paciente.Apellidos}",
-            Dni = paciente.DNI,
-            FechaNacimiento = paciente.FechaNacimiento,
-            Sexo = paciente.Sexo == "M" ? "MASCULINO" : "FEMENINO",
+            NombresApellidos = nombreFormateado,
+            Dni = paciente.DNI ?? "Pendiente",
+            FechaNacimiento = paciente.FechaNacimiento ?? DateTime.MinValue,
+            Sexo = sexoFormateado,
             LugarNacimiento = paciente.LugarNacimiento ?? "",
-            Direccion = paciente.Direccion ?? "",
-            Correo = paciente.Correo ?? "",
+            Direccion = "Ficha de Afiliación",
+            Correo = "",
             Celular = paciente.Celular ?? "",
             Ocupacion = paciente.Ocupacion ?? "",
-            MotivoConsulta = anamnesis?.MotivoConsulta ?? "",
             NumeroHistoria = historial.CodigoHistorial,
             FechaRegistro = paciente.FechaRegistro,
-            Menarquia = "",
-            RitmoCatamenial = "",
-            Gesta = anamnesis?.Gestaciones ?? 0,
-            Partos = anamnesis?.PartosATermino ?? 0,
-            Abortos = anamnesis?.Abortos ?? 0,
-            HijosVivos = anamnesis?.HijosVivos ?? 0,
-            HijosMuertos = 0,
-            FUR = anamnesis?.FechaUltimaRegla,
-            FPP = anamnesis?.FechaProbableParto,
-            PI = "",
-            MetodoAnticonceptivo = "",
-            PA = "",
-            Pulso = "",
-            Temperatura = "",
-            Respiracion = "",
-            SO2 = "",
-            Peso = "",
-            Talla = "",
-            AlturaUterina = examenFisico?.AlturaUterina?.ToString() ?? "",
-            Situacion = examenFisico?.SituacionPosicionPresentacion ?? "",
-            Presentacion = examenFisico?.SituacionPosicionPresentacion ?? "",
-            LatidosCardiacosFetales = examenFisico?.LatidosCardiacosFetales?.ToString() ?? "",
-            Edemas = examenFisico?.Edemas ?? "",
-            Indicaciones = diagnostico?.IndicacionesReceta ?? "",
+            
+            // Mapeo adaptado de las notas de la evolución y diagnóstico de cierre
+            MotivoConsulta = ultimaAtencion?.ObservacionesIniciales ?? "",
+            Indicaciones = cierre?.Recomendaciones ?? "",
+            Peso = paciente.PesoKg?.ToString() ?? "",
+            Talla = paciente.TallaMetros?.ToString() ?? "",
+            
+            // Campos obstétricos obsoletos quemados con valores base neutrales para preservar compatibilidad
+            Gesta = 0,
+            Partos = 0,
+            Abortos = 0,
+            HijosVivos = 0,
+            FUR = null,
+            FPP = null,
+            AlturaUterina = "",
+            Situacion = "",
+            Presentacion = "",
+            LatidosCardiacosFetales = "",
+            Edemas = "",
+            
+            // Historial resumido de las últimas 5 consultas externas del paciente
             Atenciones = atencionesOrdenadas.Take(5).Select(a => new AtencionResumenDto
             {
                 Fecha = a.FechaInicio,
                 Servicio = a.ServicioClinico?.Nombre ?? "",
                 Doctor = a.Doctor != null ? $"{a.Doctor.Nombres} {a.Doctor.Apellidos}" : "",
-                Diagnostico = a.ImpresionDiagnostica?.DiagnosticoPrincipal ?? ""
+                Diagnostico = a.DiagnosticoCierre?.ImpresionDiagnostica ?? "Evolución en progreso"
             }).ToList()
         };
 
@@ -135,7 +124,7 @@ public class HistoriaClinicaController : ControllerBase
             return StatusCode(500, ApiResponse<object>.Error($"Error al generar el PDF: {ex.Message}", 500));
         }
 
-        var fileName = $"HistoriaClinica_{paciente.DNI}_{DateTime.Now:yyyyMMddHHmm}.pdf";
+        var fileName = $"HistoriaClinica_{paciente.DNI ?? "PCT"}_{DateTime.Now:yyyyMMddHHmm}.pdf";
         return File(pdfBytes, "application/pdf", fileName);
     }
 }

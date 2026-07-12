@@ -17,14 +17,18 @@ public class AtencionResponseDto
     public Guid HistorialClinicoId { get; set; }
     public DateTime FechaInicio { get; set; }
     public DateTime? FechaCierre { get; set; }
-    public EstadoAtencion Estado { get; set; }
+    public string? Estado { get; set; }
+    public string? ObservacionesIniciales { get; set; }
+    
     public decimal CostoFinal { get; set; }
     public decimal MontoPagado { get; set; }
     public decimal SaldoPendiente { get; set; }
 
-    public AnamnesisDto? Anamnesis { get; set; }
-    public List<ExamenFisicoDto> ExamenesFisicos { get; set; } = new();
-    public List<TactoVaginalDto> TactosVaginales { get; set; } = new();
-    public List<EcografiaObstetricaDto> Ecografias { get; set; } = new();
-    public ImpresionDiagnosticaDto? ImpresionDiagnostica { get; set; }
+    // Sub-módulos psicológicos expandidos en el JSON de salida
+    public PsicoAnamnesisHistoriaDto? AnamnesisHistoria { get; set; }
+    public PsicoSomaticoVegetativoDto? SomaticoVegetativo { get; set; }
+    public PsicoEscalasAnimoDto? EscalasAnimo { get; set; }
+    public PsicoDesarrolloPsicosocialDto? DesarrolloPsicosocial { get; set; }
+    public PsicoEvaluacionCognitivaDto? EvaluacionCognitiva { get; set; }
+    public PsicoDiagnosticoCierreDto? DiagnosticoCierre { get; set; }
 }

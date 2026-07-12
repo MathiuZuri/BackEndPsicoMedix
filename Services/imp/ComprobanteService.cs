@@ -152,6 +152,9 @@ public class ComprobanteService : IComprobanteService
         };
     }
 
+    // ==========================================================
+    // 1. BOLETA DE PAGO (Emisión)
+    // ==========================================================
     public async Task<Guid> EmitirBoletaPagoAsync(EmitirComprobantePagoDto dto, Guid usuarioId)
     {
         if (dto.PagoId == Guid.Empty && string.IsNullOrWhiteSpace(dto.CodigoPago))
@@ -181,6 +184,14 @@ public class ComprobanteService : IComprobanteService
         var subtotal = CalcularSubtotalDesdeTotal(pago.MontoPagado, TasaIgvActiva);
         var impuesto = pago.MontoPagado - subtotal;
 
+        // 🚀 Control defensivo de nulos para la ficha del paciente
+        var nombrePaciente = pago.Paciente == null 
+            ? "No registrado" 
+            : $"{pago.Paciente.Nombres} {pago.Paciente.Apellidos}".Trim();
+        if (string.IsNullOrEmpty(nombrePaciente)) nombrePaciente = "No registrado";
+
+        var dniPaciente = pago.Paciente?.DNI ?? "Pendiente";
+
         var comprobante = new Comprobante
         {
             Id = Guid.NewGuid(),
@@ -196,9 +207,9 @@ public class ComprobanteService : IComprobanteService
             AtencionId = pago.AtencionId,
             HistorialClinicoId = pago.Atencion?.HistorialClinicoId,
             TipoDocumentoPaciente = TipoDocumentoComprobante.DNI,
-            NumeroDocumentoPaciente = pago.Paciente?.DNI ?? "",
-            NombrePaciente = pago.Paciente == null ? "" : $"{pago.Paciente.Nombres} {pago.Paciente.Apellidos}",
-            DireccionPaciente = pago.Paciente?.Direccion,
+            NumeroDocumentoPaciente = dniPaciente,
+            NombrePaciente = nombrePaciente,
+            DireccionPaciente = "", // Propiedad removida del modelo Paciente
             Subtotal = subtotal,
             TasaImpuesto = TasaIgvActiva,
             MontoImpuesto = impuesto,
@@ -212,8 +223,8 @@ public class ComprobanteService : IComprobanteService
                 PagoId = pago.Id,
                 CodigoPago = pago.CodigoPago,
                 PacienteId = pago.PacienteId,
-                Paciente = pago.Paciente == null ? "" : $"{pago.Paciente.Nombres} {pago.Paciente.Apellidos}",
-                DniPaciente = pago.Paciente?.DNI ?? "",
+                Paciente = nombrePaciente,
+                DniPaciente = dniPaciente,
                 Servicio = pago.ServicioClinico?.Nombre ?? "Servicio clínico",
                 MontoTotal = pago.MontoTotal,
                 MontoPagado = pago.MontoPagado,
@@ -262,6 +273,11 @@ public class ComprobanteService : IComprobanteService
                        .FirstOrDefaultAsync(x => x.Id == citaId)
                    ?? throw new KeyNotFoundException("Cita no encontrada.");
 
+        var nombrePaciente = cita.Paciente == null 
+            ? "No registrado" 
+            : $"{cita.Paciente.Nombres} {cita.Paciente.Apellidos}".Trim();
+        if (string.IsNullOrEmpty(nombrePaciente)) nombrePaciente = "No registrado";
+
         return new ComprobanteCitaPreviewDto
         {
             ComprobanteId = Guid.Empty,
@@ -269,14 +285,14 @@ public class ComprobanteService : IComprobanteService
             CitaId = cita.Id,
             CodigoCita = cita.CodigoCita,
             PacienteId = cita.PacienteId,
-            Paciente = $"{cita.Paciente.Nombres} {cita.Paciente.Apellidos}",
-            DniPaciente = cita.Paciente.DNI,
-            DireccionPaciente = cita.Paciente.Direccion,
+            Paciente = nombrePaciente,
+            DniPaciente = cita.Paciente?.DNI ?? "Pendiente",
+            DireccionPaciente = "", 
             DoctorId = cita.DoctorId,
-            Doctor = $"{cita.Doctor.Nombres} {cita.Doctor.Apellidos}",
-            Especialidad = cita.Doctor.Especialidad,
+            Doctor = cita.Doctor == null ? "" : $"{cita.Doctor.Nombres} {cita.Doctor.Apellidos}",
+            Especialidad = cita.Doctor?.Especialidad ?? "",
             ServicioClinicoId = cita.ServicioClinicoId,
-            Servicio = cita.ServicioClinico.Nombre,
+            Servicio = cita.ServicioClinico?.Nombre ?? "",
             FechaCita = cita.Fecha,
             HoraInicio = cita.HoraInicio,
             HoraFin = cita.HoraFin,
@@ -304,6 +320,13 @@ public class ComprobanteService : IComprobanteService
             .MaxAsync(x => (int?)x.Numero) ?? 0;
         var numero = ultimoNumero + 1;
 
+        var nombrePaciente = cita.Paciente == null 
+            ? "No registrado" 
+            : $"{cita.Paciente.Nombres} {cita.Paciente.Apellidos}".Trim();
+        if (string.IsNullOrEmpty(nombrePaciente)) nombrePaciente = "No registrado";
+
+        var dniPaciente = cita.Paciente?.DNI ?? "Pendiente";
+
         var comprobante = new Comprobante
         {
             Id = Guid.NewGuid(),
@@ -317,9 +340,9 @@ public class ComprobanteService : IComprobanteService
             CitaId = cita.Id,
             HistorialClinicoId = cita.Paciente.HistorialClinico?.Id,
             TipoDocumentoPaciente = TipoDocumentoComprobante.DNI,
-            NumeroDocumentoPaciente = cita.Paciente.DNI,
-            NombrePaciente = $"{cita.Paciente.Nombres} {cita.Paciente.Apellidos}",
-            DireccionPaciente = cita.Paciente.Direccion,
+            NumeroDocumentoPaciente = dniPaciente,
+            NombrePaciente = nombrePaciente,
+            DireccionPaciente = "",
             Subtotal = 0,
             TasaImpuesto = 0,
             MontoImpuesto = 0,
@@ -333,8 +356,8 @@ public class ComprobanteService : IComprobanteService
                 CitaId = cita.Id,
                 CodigoCita = cita.CodigoCita,
                 PacienteId = cita.PacienteId,
-                Paciente = $"{cita.Paciente.Nombres} {cita.Paciente.Apellidos}",
-                DniPaciente = cita.Paciente.DNI,
+                Paciente = nombrePaciente,
+                DniPaciente = dniPaciente,
                 DoctorId = cita.DoctorId,
                 Doctor = cita.Doctor == null ? "" : $"{cita.Doctor.Nombres} {cita.Doctor.Apellidos}",
                 Servicio = cita.ServicioClinico?.Nombre ?? "",
@@ -382,6 +405,13 @@ public class ComprobanteService : IComprobanteService
             .MaxAsync(x => (int?)x.Numero) ?? 0;
         var numero = ultimoNumero + 1;
 
+        var nombrePaciente = atencion.Paciente == null 
+            ? "No registrado" 
+            : $"{atencion.Paciente.Nombres} {atencion.Paciente.Apellidos}".Trim();
+        if (string.IsNullOrEmpty(nombrePaciente)) nombrePaciente = "No registrado";
+
+        var dniPaciente = atencion.Paciente?.DNI ?? "Pendiente";
+
         var comprobante = new Comprobante
         {
             Id = Guid.NewGuid(),
@@ -395,9 +425,9 @@ public class ComprobanteService : IComprobanteService
             AtencionId = atencion.Id,
             HistorialClinicoId = atencion.HistorialClinicoId,
             TipoDocumentoPaciente = TipoDocumentoComprobante.DNI,
-            NumeroDocumentoPaciente = atencion.Paciente.DNI,
-            NombrePaciente = $"{atencion.Paciente.Nombres} {atencion.Paciente.Apellidos}",
-            DireccionPaciente = atencion.Paciente.Direccion,
+            NumeroDocumentoPaciente = dniPaciente,
+            NombrePaciente = nombrePaciente,
+            DireccionPaciente = "",
             Subtotal = subtotal,
             TasaImpuesto = TasaIgvActiva,
             MontoImpuesto = impuesto,
@@ -407,15 +437,17 @@ public class ComprobanteService : IComprobanteService
             Observacion = dto.Observacion?.Trim(),
             DatosSnapshotJson = JsonSerializer.Serialize(new
             {
-                Tipo = "Resumen de atención",
+                Tipo = "Resumen de atención psicológica",
                 AtencionId = atencion.Id,
                 CodigoAtencion = atencion.CodigoAtencion,
                 PacienteId = atencion.PacienteId,
-                Paciente = $"{atencion.Paciente.Nombres} {atencion.Paciente.Apellidos}",
+                Paciente = nombrePaciente,
                 Doctor = atencion.Doctor == null ? "" : $"{atencion.Doctor.Nombres} {atencion.Doctor.Apellidos}",
                 Servicio = atencion.ServicioClinico?.Nombre ?? "",
-                MotivoConsulta = atencion.Anamnesis?.MotivoConsulta,
-                DiagnosticoPrincipal = atencion.ImpresionDiagnostica?.DiagnosticoPrincipal,
+                
+                // Snapshot adaptado con los campos mutados
+                MotivoConsulta = atencion.ObservacionesIniciales,
+                DiagnosticoPrincipal = atencion.DiagnosticoCierre?.ImpresionDiagnostica,
                 FechaInicio = atencion.FechaInicio,
                 FechaCierre = atencion.FechaCierre,
                 CostoFinal = costoFinal,
@@ -468,14 +500,17 @@ public class ComprobanteService : IComprobanteService
         var totalPagado = pagosValidos.Sum(x => x.MontoPagado);
         var totalPendiente = Math.Max(totalFacturado - totalPagado, 0);
 
+        var nombrePaciente = $"{paciente.Nombres} {paciente.Apellidos}".Trim();
+        if (string.IsNullOrEmpty(nombrePaciente)) nombrePaciente = "No registrado";
+
         return new ComprobanteEstadoCuentaPreviewDto
         {
             ComprobanteId = Guid.Empty,
             CodigoComprobante = "PREVIEW",
             PacienteId = paciente.Id,
-            Paciente = $"{paciente.Nombres} {paciente.Apellidos}",
-            DniPaciente = paciente.DNI,
-            DireccionPaciente = paciente.Direccion,
+            Paciente = nombrePaciente,
+            DniPaciente = paciente.DNI ?? "Pendiente",
+            DireccionPaciente = "",
             TotalFacturado = totalFacturado,
             TotalPagado = totalPagado,
             TotalPendiente = totalPendiente,
@@ -524,6 +559,9 @@ public class ComprobanteService : IComprobanteService
             .MaxAsync(x => (int?)x.Numero) ?? 0;
         var numero = ultimoNumero + 1;
 
+        var nombrePaciente = $"{paciente.Nombres} {paciente.Apellidos}".Trim();
+        if (string.IsNullOrEmpty(nombrePaciente)) nombrePaciente = "No registrado";
+
         var comprobante = new Comprobante
         {
             Id = Guid.NewGuid(),
@@ -536,9 +574,9 @@ public class ComprobanteService : IComprobanteService
             PacienteId = paciente.Id,
             HistorialClinicoId = paciente.HistorialClinico?.Id,
             TipoDocumentoPaciente = TipoDocumentoComprobante.DNI,
-            NumeroDocumentoPaciente = paciente.DNI,
-            NombrePaciente = $"{paciente.Nombres} {paciente.Apellidos}",
-            DireccionPaciente = paciente.Direccion,
+            NumeroDocumentoPaciente = paciente.DNI ?? "Pendiente",
+            NombrePaciente = nombrePaciente,
+            DireccionPaciente = "",
             Subtotal = totalFacturado,
             TasaImpuesto = 0,
             MontoImpuesto = 0,
@@ -550,8 +588,8 @@ public class ComprobanteService : IComprobanteService
             {
                 Tipo = "Estado de cuenta",
                 PacienteId = paciente.Id,
-                Paciente = $"{paciente.Nombres} {paciente.Apellidos}",
-                DniPaciente = paciente.DNI,
+                Paciente = nombrePaciente,
+                DniPaciente = paciente.DNI ?? "Pendiente",
                 TotalFacturado = totalFacturado,
                 TotalPagado = totalPagado,
                 TotalPendiente = totalPendiente,
@@ -726,17 +764,22 @@ public class ComprobanteService : IComprobanteService
 
     private async Task<Atencion> ObtenerAtencionDetalleCompletoAsync(Guid atencionId)
     {
+        // Cargamos de forma hambrienta todas las piezas psicológicas del documento único
         return await _context.Set<Atencion>()
-            .Include(x => x.Paciente)
-            .Include(x => x.Doctor)
-                .ThenInclude(d => d.Usuario)
-            .Include(x => x.ServicioClinico)
-            .Include(x => x.Cita)
-            .Include(x => x.Pagos)
-            .Include(x => x.Anamnesis)
-            .Include(x => x.ImpresionDiagnostica)
-            .FirstOrDefaultAsync(x => x.Id == atencionId)
-            ?? throw new KeyNotFoundException("Atención no encontrada.");
+                   .Include(x => x.Paciente)
+                   .Include(x => x.Doctor)
+                   .ThenInclude(d => d.Usuario)
+                   .Include(x => x.ServicioClinico)
+                   .Include(x => x.Cita)
+                   .Include(x => x.Pagos)
+                   .Include(x => x.AnamnesisHistoria)
+                   .Include(x => x.SomaticoVegetativo)
+                   .Include(x => x.EscalasAnimo)
+                   .Include(x => x.DesarrolloPsicosocial)
+                   .Include(x => x.EvaluacionCognitiva)
+                   .Include(x => x.DiagnosticoCierre)
+                   .FirstOrDefaultAsync(x => x.Id == atencionId)
+               ?? throw new KeyNotFoundException("Atención no encontrada.");
     }
 
     private static string ObtenerSerie(TipoComprobante tipo)
@@ -763,6 +806,13 @@ public class ComprobanteService : IComprobanteService
         var montoPagado = atencion.Pagos?.Sum(p => p.MontoPagado) ?? 0;
         var saldoPendiente = atencion.Pagos?.Sum(p => p.SaldoPendiente) ?? 0;
 
+        var nombrePaciente = atencion.Paciente == null 
+            ? "No registrado" 
+            : $"{atencion.Paciente.Nombres} {atencion.Paciente.Apellidos}".Trim();
+        if (string.IsNullOrEmpty(nombrePaciente)) nombrePaciente = "No registrado";
+
+        var dniPaciente = atencion.Paciente?.DNI ?? "Pendiente";
+
         return new ComprobanteAtencionPreviewDto
         {
             ComprobanteId = Guid.Empty,
@@ -770,9 +820,9 @@ public class ComprobanteService : IComprobanteService
             AtencionId = atencion.Id,
             CodigoAtencion = atencion.CodigoAtencion ?? "",
             PacienteId = atencion.PacienteId,
-            Paciente = $"{atencion.Paciente.Nombres} {atencion.Paciente.Apellidos}",
-            DniPaciente = atencion.Paciente.DNI,
-            DireccionPaciente = atencion.Paciente.Direccion,
+            Paciente = nombrePaciente,
+            DniPaciente = dniPaciente,
+            DireccionPaciente = "", 
             DoctorId = atencion.DoctorId,
             Doctor = atencion.Doctor == null ? "" : $"{atencion.Doctor.Nombres} {atencion.Doctor.Apellidos}",
             Especialidad = atencion.Doctor?.Especialidad ?? "",
@@ -780,11 +830,14 @@ public class ComprobanteService : IComprobanteService
             Servicio = atencion.ServicioClinico?.Nombre ?? "Servicio clínico",
             FechaInicio = atencion.FechaInicio,
             FechaCierre = atencion.FechaCierre,
-            MotivoConsulta = atencion.Anamnesis?.MotivoConsulta ?? "",
-            DiagnosticoResumen = atencion.ImpresionDiagnostica?.DiagnosticoPrincipal,
-            Indicaciones = atencion.ImpresionDiagnostica?.IndicacionesReceta,
-            Tratamiento = atencion.ImpresionDiagnostica?.DiagnosticosSecundarios,
-            Observaciones = atencion.ImpresionDiagnostica?.DiagnosticosSecundarios,
+            
+            // Ajustado al formulario psicológico
+            MotivoConsulta = atencion.ObservacionesIniciales ?? "",
+            DiagnosticoResumen = atencion.DiagnosticoCierre?.ImpresionDiagnostica ?? "Pendiente de evaluación",
+            Indicaciones = atencion.DiagnosticoCierre?.Recomendaciones ?? "",
+            Tratamiento = atencion.DiagnosticoCierre?.DiagnosticoDiferencial1 ?? "",
+            Observaciones = atencion.DiagnosticoCierre?.ImpresionDiagnostica ?? "",
+            
             EstadoAtencion = atencion.Estado.ToString(),
             CostoFinal = costoFinal,
             MontoPagado = montoPagado,

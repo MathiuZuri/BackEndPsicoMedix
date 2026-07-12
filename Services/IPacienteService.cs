@@ -8,7 +8,7 @@ public interface IPacienteService
     Task<PacienteResponseDto?> ObtenerPorIdAsync(Guid id);
     Task<PacienteResponseDto?> ObtenerPorDniAsync(string dni);
     
-    // Se incluye el parámetro usuarioId para desvincular el servicio del HttpContext
+    // Procesa el DTO unificado con soporte para nulos y la clave foránea hacia Doctor
     Task<Guid> CrearAsync(CrearPacienteDto dto, Guid usuarioId);
     
     Task ActualizarContactoAsync(Guid id, ActualizarContactoPacienteDto dto);

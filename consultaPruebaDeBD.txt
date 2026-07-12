@@ -1,0 +1,350 @@
+﻿// consulta para paciente con muchos familiares
+
+DO $$
+DECLARE
+    v_usuario_id UUID;
+    v_doctor_id UUID;
+    v_paciente_id UUID;
+    v_historial_id UUID;
+    v_codigo_pct VARCHAR(50);
+    v_codigo_his VARCHAR(50);
+    v_dni_nuevo VARCHAR(20) := '77665544'; -- 🚀 NUEVO DNI para este paciente
+BEGIN
+    -- 1. Recuperamos los IDs de infraestructura existentes (Admin y Médico)
+    SELECT "Id" INTO v_usuario_id FROM "Usuarios" WHERE "UserName" = 'admin' LIMIT 1;
+    SELECT "Id" INTO v_doctor_id FROM "Doctores" WHERE "CMP" = '102030' LIMIT 1;
+
+    IF v_usuario_id IS NULL OR v_doctor_id IS NULL THEN
+        RAISE EXCEPTION 'Error: Asegúrate de que existan el usuario admin y el doctor 102030.';
+    END IF;
+
+    -- 2. Validamos duplicados para el nuevo registro
+    IF EXISTS (SELECT 1 FROM "Pacientes" WHERE "DNI" = v_dni_nuevo) THEN
+        RAISE NOTICE 'El paciente con DNI % ya existe.', v_dni_nuevo;
+    ELSE
+        -- Inicializamos identificadores únicos para el nuevo paciente
+        v_paciente_id := gen_random_uuid();
+        v_historial_id := gen_random_uuid();
+        v_codigo_pct := 'PCT-2026-NEW-' || UPPER(SUBSTRING(gen_random_uuid()::text FROM 1 FOR 5));
+        v_codigo_his := 'FIL-2026-' || v_dni_nuevo;
+
+        -- 3. Insertamos los datos maestros del nuevo paciente (Fabián Condori)
+        INSERT INTO "Pacientes" (
+            "Id", "CodigoPaciente", "DNI", "FechaAtencion",
+            "TieneInformante", "PrimeraAtencionPsicologia", 
+            "Nombres", "Apellidos", "Genero", "EdadAnos", "Celular", "FechaNacimiento", 
+            "EstadoCivil", "LugarNacimiento", "Ocupacion", "GradoInstruccion",
+            "TieneMasHermanosHijos", "TieneMediosHermanosPadrastros", "IntegrantesFamilia", 
+            "Religion", "PesoKg", "TallaMetros", "IMC",
+            "DoctorId", "ConsultaAsuntosLegales", "MotivoConsulta", "RecepcionadoPorId",
+            "Estado", "UsuarioId", "FechaRegistro"
+        ) VALUES (
+            v_paciente_id, v_codigo_pct, v_dni_nuevo, NOW(),
+            FALSE, TRUE, 
+            'Fabián Renato', 'Condori Quispe', 'Masculino', 24, '958443322', '2002-09-20'::timestamp,
+            'Soltero', 'Juliaca', 'Desempleado', 'SuperiorTecnicoCompleto',
+            TRUE, FALSE, 5, -- 5 miembros en total contando al paciente
+            'Ninguna', 72.00, 1.74, 23.78,
+            v_doctor_id, FALSE, 'El evaluado solicita soporte psicológico por presentar cuadros persistentes de insomnio, irritabilidad y desmotivación tras culminar sus estudios superiores.', v_usuario_id,
+            'Activo', v_usuario_id, NOW()
+        );
+
+        -- 4. LA GRILLA DINÁMICA (Efecto de la ICollection)
+        -- Insertamos 4 filas independientes en "PacienteFamiliares", todas amarradas a v_paciente_id
+
+        -- Fila 1: El Padre
+        INSERT INTO "PacienteFamiliares" ("Id", "PacienteId", "Parentesco", "Nombres", "Edad", "Ocupacion", "VivenJuntos")
+        VALUES (gen_random_uuid(), v_paciente_id, 'Padre', 'Justo Condori Apaza', 54, 'Transportista', TRUE);
+
+        -- Fila 2: La Madre
+        INSERT INTO "PacienteFamiliares" ("Id", "PacienteId", "Parentesco", "Nombres", "Edad", "Ocupacion", "VivenJuntos")
+        VALUES (gen_random_uuid(), v_paciente_id, 'Madre', 'Elena Martha Quispe Choque', 51, 'Comerciante', TRUE);
+
+        -- Fila 3: Hermano Mayor (HijoHermano1)
+        INSERT INTO "PacienteFamiliares" ("Id", "PacienteId", "Parentesco", "Nombres", "Edad", "Ocupacion", "VivenJuntos")
+        VALUES (gen_random_uuid(), v_paciente_id, 'HijoHermano1', 'Percy Condori Quispe', 28, 'Ingeniero', FALSE);
+
+        -- Fila 4: Hermana Menor (HijoHermano2)
+        INSERT INTO "PacienteFamiliares" ("Id", "PacienteId", "Parentesco", "Nombres", "Edad", "Ocupacion", "VivenJuntos")
+        VALUES (gen_random_uuid(), v_paciente_id, 'HijoHermano2', 'Yanet Lizbeth Condori Quispe', 12, 'Estudiante', TRUE);
+
+
+        -- 5. Apertura correspondiente del Historial Clínico obligatorio
+        INSERT INTO "HistorialesClinicos" ("Id", "CodigoHistorial", "PacienteId", "FechaApertura", "Estado")
+        VALUES (v_historial_id, v_codigo_his, v_paciente_id, NOW(), 'Activo');
+
+        RAISE NOTICE '¡Éxito! Paciente Fabián Condori registrado con sus 4 familiares directos.';
+    END IF;
+END $$;
+
+//consulta para paciente con formulario completo
+
+DO $$
+DECLARE
+    v_usuario_id UUID;
+    v_doctor_id UUID;
+    v_paciente_id UUID;
+    v_historial_id UUID;
+    v_codigo_pct VARCHAR(50);
+    v_codigo_his VARCHAR(50);
+    v_dni_prueba VARCHAR(20) := '99887766'; -- DNI único para esta prueba
+BEGIN
+    -- 1. Buscamos el ID del usuario 'admin' creado por tu Seeder
+    SELECT "Id" INTO v_usuario_id 
+    FROM "Usuarios" 
+    WHERE "UserName" = 'admin' 
+    LIMIT 1;
+
+    -- 2. Buscamos el ID de la Doctora María González usando su CMP de prueba
+    SELECT "Id" INTO v_doctor_id 
+    FROM "Doctores" 
+    WHERE "CMP" = '102030' 
+    LIMIT 1;
+
+    -- Si no se encuentran los datos base, lanzamos una alerta para no romper la integridad
+    IF v_usuario_id IS NULL OR v_doctor_id IS NULL THEN
+        RAISE EXCEPTION 'Error: Asegúrate de correr la aplicación primero para que el DataSeeder registre al admin y al doctor.';
+    END IF;
+
+    -- 3. Verificamos si el paciente de prueba ya existe para evitar duplicados
+    IF EXISTS (SELECT 1 FROM "Pacientes" WHERE "DNI" = v_dni_prueba) THEN
+        RAISE NOTICE 'El paciente con DNI % ya existe en el sistema.', v_dni_prueba;
+    ELSE
+        -- Generamos IDs y códigos correlativos simulados
+        v_paciente_id := gen_random_uuid();
+        v_historial_id := gen_random_uuid();
+        v_codigo_pct := 'PCT-2026-SQL-' || UPPER(SUBSTRING(gen_random_uuid()::text FROM 1 FOR 5));
+        v_codigo_his := 'FIL-2026-' || v_dni_prueba;
+
+        -- 4. SECCIÓN 0, I, II, III y IV: Inserción maestra en la tabla "Pacientes"
+        INSERT INTO "Pacientes" (
+            "Id", "CodigoPaciente", "DNI", "FechaAtencion",
+            -- SECCIÓN I: Informante
+            "TieneInformante", "InformanteNombre", "InformanteParentesco", "InformanteOcupacion", "InformanteEstadoCivil", "InformanteEdad", "InformanteCelular",
+            -- SECCIÓN II: Evaluado
+            "PrimeraAtencionPsicologia", "Nombres", "Apellidos", "Genero", "EdadAnos", "EdadMeses", "Celular", "FechaNacimiento", "EstadoCivil", "LugarNacimiento", "Ocupacion", "GradoInstruccion", "GradoSemestreCiclo", "Carrera",
+            -- SECCIÓN III: Entorno Fijo
+            "TieneMasHermanosHijos", "TieneMediosHermanosPadrastros", "IntegrantesFamilia", "Religion", "PesoKg", "TallaMetros", "IMC",
+            -- SECCIÓN IV: Asignaciones Clínicas
+            "DoctorId", "OtrasEspecialidadesRaw", "ConsultaAsuntosLegales", "MotivoConsulta", "RecepcionadoPorId",
+            -- Infraestructura base
+            "Estado", "UsuarioId", "FechaRegistro"
+        ) VALUES (
+            v_paciente_id, v_codigo_pct, v_dni_prueba, NOW(),
+            -- Informante (Habilitado)
+            TRUE, 'Carlos Alberto Flores Ramos', 'Padre', 'Comerciante', 'Casado', 48, '951234567',
+            -- Evaluado/a (Diana Flores)
+            TRUE, 'Diana Carolina', 'Flores Mamani', 'Femenino', 19, NULL, '974889900', '2007-04-15'::timestamp, 'Soltero', 'Juliaca', 'Estudiante', 'SuperiorUniversitariaEnCurso', '4to Semestre', 'Contabilidad',
+            -- Entorno
+            TRUE, FALSE, 5, 'Católica', 54.50, 1.58, 21.83,
+            -- Asignación (Mapeo por variables)
+            v_doctor_id, 'Nutrición,Psiquiatría', FALSE, 'La paciente refiere experimentar crisis de ansiedad agudas y dificultades severas de concentración durante los periodos de evaluación académica en la universidad.', v_usuario_id,
+            -- Estado e Infraestructura
+            'Activo', v_usuario_id, NOW()
+        );
+
+        -- 5. SECCIÓN III (Grilla Dinámica): Corregimos tu consulta insertando las filas en "PacienteFamiliares"
+        -- Fila 1: Madre
+        INSERT INTO "PacienteFamiliares" (
+            "Id", "PacienteId", "Parentesco", "Nombres", "Edad", "Ocupacion", "VivenJuntos"
+        ) VALUES (
+            gen_random_uuid(), v_paciente_id, 'Madre', 'Fanny Elena Mamani Tito', 45, 'Enfermera', TRUE
+        );
+
+        -- Fila 2: Hermano menor (Aquí corregimos el error de tu columna)
+        INSERT INTO "PacienteFamiliares" (
+            "Id", "PacienteId", "Parentesco", "Nombres", "Edad", "Ocupacion", "VivenJuntos"
+        ) VALUES (
+            gen_random_uuid(), v_paciente_id, 'HijoHermano1', 'Luis Ángel Flores Mamani', 14, 'Estudiante', TRUE
+        );
+
+        -- 6. APERTURA DE HISTORIAL: Garantizamos que tenga su registro en "HistorialesClinicos" 
+        -- Esto evita que el sistema falle por excepciones NullReference en la API de los PDFs
+        INSERT INTO "HistorialesClinicos" (
+            "Id", "CodigoHistorial", "PacienteId", "FechaApertura", "Estado"
+        ) VALUES (
+            v_historial_id, v_codigo_his, v_paciente_id, NOW(), 'Activo'
+        );
+
+        RAISE NOTICE '¡Éxito! Paciente de prueba Diana Flores, familiares e historial clínico creados correctamente.';
+    END IF;
+END $$;
+
+
+// para probar la atencion basica
+
+DO $$
+DECLARE
+    v_usuario_id UUID;
+    v_doctor_id UUID;
+    v_paciente_id UUID;
+    v_historial_id UUID;
+    v_servicio_id UUID;
+    v_codigo_srv VARCHAR(10);
+    v_atencion_id UUID := gen_random_uuid();
+    v_dni_prueba VARCHAR(20) := '99887766'; -- Vinculado al paciente Diana Flores
+    v_codigo_atn VARCHAR(50);
+    v_codigo_pag VARCHAR(50);
+    v_codigo_det VARCHAR(50);
+BEGIN
+    -- 1. Buscamos las entidades core necesarias para amarrar la atención
+    SELECT "Id" INTO v_usuario_id FROM "Usuarios" WHERE "UserName" = 'admin' LIMIT 1;
+    SELECT "Id" INTO v_doctor_id FROM "Doctores" WHERE "CMP" = '102030' LIMIT 1;
+    
+    SELECT "Id" INTO v_paciente_id FROM "Pacientes" WHERE "DNI" = v_dni_prueba LIMIT 1;
+    SELECT "Id" INTO v_historial_id FROM "HistorialesClinicos" WHERE "PacienteId" = v_paciente_id LIMIT 1;
+
+    IF v_paciente_id IS NULL THEN
+        RAISE EXCEPTION 'Error: No se encontró al paciente con DNI %. Corre primero el script de creación del paciente.', v_dni_prueba;
+    END IF;
+
+    -- 2. Buscamos el nuevo código de servicio de psicología del seeder
+    SELECT "Id", "CodigoServicio" INTO v_servicio_id, v_codigo_srv 
+    FROM "ServiciosClinicos" 
+    WHERE "CodigoServicio" = 'PSIGEN' 
+    LIMIT 1;
+
+    -- Fallback defensivo si se corre antes del seeder
+    IF v_servicio_id IS NULL THEN
+        SELECT "Id", "CodigoServicio" INTO v_servicio_id, v_codigo_srv FROM "ServiciosClinicos" LIMIT 1;
+    END IF;
+
+    -- 3. Generamos los códigos correlativos clínicos de la sesión
+    v_codigo_atn := 'ATN-2026-' || UPPER(SUBSTRING(gen_random_uuid()::text FROM 1 FOR 5)) || '-' || v_codigo_srv;
+    v_codigo_pag := 'PAG-2026-NUEV-' || UPPER(SUBSTRING(gen_random_uuid()::text FROM 1 FOR 4));
+    v_codigo_det := UPPER(SUBSTRING(gen_random_uuid()::text FROM 1 FOR 5)) || '-' || v_codigo_srv || '-2026';
+
+    -- 4. INSERCIÓN: Cabecera Core de la Atención ("Atenciones")
+    INSERT INTO "Atenciones" (
+        "Id", "CodigoAtencion", "PacienteId", "DoctorId", "ServicioClinicoId", 
+        "CitaId", "HistorialClinicoId", "FechaInicio", "FechaCierre", "Estado", "ObservacionesIniciales"
+    ) VALUES (
+        v_atencion_id, v_codigo_atn, v_paciente_id, v_doctor_id, v_servicio_id,
+        NULL, v_historial_id, NOW() - INTERVAL '45 minutes', NOW(), 'Cerrada', 
+        'Paciente acude a sesión acompañada de su progenitor. Se observa cooperativa pero con evidente signo de fatiga cognitiva y ansiedad psicomotriz leve.'
+    );
+
+    -- 5. INSERCIÓN: Sub-Tabla 1 - Anamnesis e Historia ("PsicoAnamnesisHistoriales")
+    INSERT INTO "PsicoAnamnesisHistoriales" (
+        "Id", "AtencionId", "SustanciasNotasGenerales", "SustanciasLegales", "ConsumoOH", "CigarrillosVape", 
+        "SustanciasNoLegales", "Medicamentos", "Suplementos", "EnfermedadesAccidentesNotasGenerales", 
+        "Enfermedades", "Accidentes", "Cirugias", "Hospitalizacion", "FamiliaresAntecedentesRelacionados"
+    ) VALUES (
+        gen_random_uuid(), v_atencion_id, 
+        'Consumo moderado de estimulantes comerciales asociados a la sobrecarga académica.',
+        'Café en dosis elevadas (4-5 tazas diarias durante exámenes). Energizantes semanales.',
+        'Consumo social ocasional de alcohol (1 o 2 veces al mes), sin signos de dependencia.',
+        'Refiere haber probado vapeadores por presión social, niega uso habitual actual.',
+        'Niega rotundamente el consumo de sustancias estupefacientes ilegales.',
+        'Tomó Alprazolam 0.5mg recetado a su madre en una ocasión de crisis extrema hace un mes.',
+        'Consumo de cápsulas de Ginkgo Biloba y Omega 3 buscando mejorar la memoria de corto plazo.',
+        'Sin antecedentes clínicos de consideración o traumatismos craneales.',
+        'Gastritis emotiva diagnosticada a los 16 años, actualmente controlada de manera dietética.',
+        'Niega accidentes de tránsito o contusiones de gravedad física.',
+        'Niega intervenciones quirúrgicas mayores o cirugías de emergencia.',
+        'Niega historial de hospitalizaciones previas por motivos físicos o de salud mental.',
+        'Abuela materna diagnosticada con Trastorno de Ansiedad Generalizada. Padre hipertenso por estrés.'
+    );
+
+    -- 6. INSERCIÓN: Sub-Tabla 2 - Somático Vegetativo ("PsicoSomaticoVegetativos")
+    INSERT INTO "PsicoSomaticoVegetativos" (
+        "Id", "AtencionId", "SuenoNotasGenerales", "SuenoDuracionInicio", "SuenoDuracionFin", "Ensonaciones", 
+        "Pesadillas", "ApneaSueno", "Sobresaltos", "ParalisisSueno", "SuenoOtros", "AlimentacionNotasGenerales", 
+        "Peso", "AspectoFisicoActividadFisica", "Apetito", "AntecedentesAlteracionesClinicas", 
+        "SomatizacionesNotasGenerales", "Cefalea", "Adormecimientos", "Sudoracion", "Rubefaccion", 
+        "SomatizacionesOtros", "SignosVitalesNotasGenerales", "SaturacionOxigeno", "ReflejoPupilar", 
+        "FrecuenciaCardiaca", "SignosVitalesOtros"
+    ) VALUES (
+        gen_random_uuid(), v_atencion_id,
+        'Insomnio de conciliación severo. El ciclo del sueño se encuentra alterado por rumiaciones.',
+        '02:30 AM', '06:45 AM', 'Refiere que sueña constantemente con los exámenes desaprobados o atrasos.',
+        'Frecuentes (2 o 3 veces por semana) relacionadas a caídas al vacío y pérdida de control.',
+        'Niega episodios de apnea detectados o reportados por familiares.',
+        'Reporta sobresaltos mioclónicos nocturnos al intentar conciliar el sueño profundo.',
+        'Experimentó 1 episodio de parálisis del sueño hace quince días durante semana de parciales.',
+        'Despertares recurrentes con sensación de ahogo leve and taquicardia emotiva.',
+        'Alimentación desorganizada por horarios universitarios truncados.', '54.5',
+        'Complexión delgada, tez pálida, ojeras marcadas. Sedentarismo por falta de tiempo.',
+        'Hiporexia (pérdida marcada del apetito) durante picos de estrés académico agudo.',
+        'Episodios recurrentes de reflujo gastroesofágico asociados a tensión nerviosa.',
+        'Cuadro somático florido con predominancia tensional neurológica.',
+        'Cefalea tensional holocraneal de frecuencia interdiaria, aliviada parcialmente con paracetamol.',
+        'Parestesias (hormigueo) leves en miembro superior izquierdo durante crisis agudas.',
+        'Sudoración palmar fría profusa en situaciones de exposición social u oral.',
+        'Rubefacción facial inmediata al ser interrogada por figuras de autoridad académica.',
+        'Tics nerviosos palpebrales (ojo derecho) intermitentes durante las últimas 3 semanas.',
+        'Funciones vitales estables dentro de los rangos basales normales.',
+        98.00, 'Isocóricas, normorreactivas a la luz y acomodación simétrica bilateral.',
+        84, 'Presión arterial simulada normal: 110/65 mmHg. Frecuencia respiratoria: 18 RPM.'
+    );
+
+    -- 7. INSERCIÓN: Sub-Tabla 3 - Escalas de Ánimo ("PsicoEscalasAnimos")
+    INSERT INTO "PsicoEscalasAnimos" (
+        "Id", "AtencionId", "EscalaIrritabilidad", "EscalaTristeza", "EscalaAnsiedad", 
+        "EscalaPreocupacion", "EscalaImpulsividad", "EscalaEstres", "EscalaFatiga", "EscalaDesmotivacion"
+    ) VALUES (
+        gen_random_uuid(), v_atencion_id, 5, 6, 9, 9, 3, 8, 7, 4
+    );
+
+    -- 8. INSERCIÓN: Sub-Tabla 4 - Desarrollo Psicosocial ("PsicoDesarrollosPsicosociales")
+    INSERT INTO "PsicoDesarrollosPsicosociales" (
+        "Id", "AtencionId", "AutoestimaAutocuidado", "AcademicoLaboral", "SocializacionFamilia", "PersonalidadAutoexpresion"
+    ) VALUES (
+        gen_random_uuid(), v_atencion_id,
+        'Autoestima vulnerable supeditada al rendimiento académico. Descuido de horas de descanso y pasatiempos.',
+        'Estudiante de Contabilidad de 4to semestre. Alto nivel de autoexigencia, miedo paralizante al fracaso académico.',
+        'Núcleo familiar funcional pero demandante. Buena relación con los padres, aunque percibe expectativas altas sobre ella.',
+        'Rasgos de personalidad perfeccionistas e introversión selectiva. Dificultad para canalizar emociones asertivamente.'
+    );
+
+    -- 9. INSERCIÓN: Sub-Tabla 5 - Evaluación Cognitiva ("PsicoEvaluacionesCognitivas")
+    INSERT INTO "PsicoEvaluacionesCognitivas" (
+        "Id", "AtencionId", "BeckPersonal", "BeckMundoExterior", "BeckFuturo", "BeckAutolesiones", "BeckAutolisis", "BeckOtros",
+        "FcPensamiento", "FcAtencion", "FcConcentracion", "FcLenguaje", "FcPercepcion", "FcJuicio", "FcAbstraccion",
+        "FcAprendizaje", "FcMemoria", "FcMotivacion", "FcEmocion", "FcCalculo", "FcCoordinacionMotoraFina", "FcCoordinacionMotoraGruesa"
+    ) VALUES (
+        gen_random_uuid(), v_atencion_id,
+        'Se autopercibe como insuficiente o incapaz de lidiar con las demandas de la carrera universitaria.',
+        'Considera que el entorno académico es hostil, altamente competitivo y excesivamente juzgador.',
+        'Incertidumbre y desesperanza moderada respecto a culminar la carrera a tiempo si continúan las crisis.',
+        'Niega conductas autolesivas.', 'Niega riesgo de autolisis.', 'Nivel de ansiedad clínica severa.',
+        'Pensamiento lógico, estructurado, con rumiación obsesiva.', 'Prosexia conservada, distractibilidad ante disparadores.',
+        'Dificultad severa de concentración sostenida durante exámenes.', 'Lenguaje fluido, coherente, taquilalia leve.',
+        'Sin alteraciones perceptivas.', 'Juicio de la realidad conservado.', 'Pensamiento abstracto maduro.',
+        'Ralentizado por el bloqueo emocional.', 'Memoria de trabajo disminuida por ansiedad.', 'Conserva motivación intrínseca.',
+        'Labilidad emocional marcada.', 'Capacidad de cálculo rápido conservada.', 'Coordinación motora fina normal.', 'Marcha estable.'
+    );
+
+    -- 10. INSERCIÓN: Sub-Tabla 6 - Diagnóstico y Cierre ("PsicoDiagnosticosCierres")
+    INSERT INTO "PsicoDiagnosticosCierres" (
+        "Id", "AtencionId", "DiagnosticoDiferencial1", "DiagnosticoDiferencial2", "DiagnosticoDiferencial3", 
+        "ImpresionDiagnostica", "Recomendaciones"
+    ) VALUES (
+        gen_random_uuid(), v_atencion_id,
+        'F41.1 - Trastorno de Ansiedad Generalizada.', 'F43.22 - Trastorno de Adaptación con Ansiedad.', 'Z55.2 - Problemas Académicos.',
+        'F41.0 - Trastorno de Pánico desencadenado por factores de estrés académico.',
+        'Iniciar Psicoterapia Cognitivo-Conductual semanal, entrenamiento en respiración y reestructuración cognitiva.'
+    );
+
+    -- 11. INSERCIÓN: Tabla "Pagos" (🚀 CORREGIDO CON METODOPAGO Y MONTOADELANTO)
+    INSERT INTO "Pagos" (
+        "Id", "CodigoPago", "AtencionId", "PacienteId", "ServicioClinicoId", 
+        "MontoTotal", "MontoPagado", "SaldoPendiente", "MontoAdelanto", "MetodoPago", "Estado", "FechaPago", "UsuarioRegistroId"
+    ) VALUES (
+        gen_random_uuid(), v_codigo_pag, v_atencion_id, v_paciente_id, v_servicio_id,
+        70.00, 0.00, 70.00, 0.00, 'Efectivo', 'Pendiente', NOW(), v_usuario_id
+    );
+
+    -- 12. INSERCIÓN: Registro en el Log Clínico ("HistorialDetalles")
+    INSERT INTO "HistorialDetalles" (
+        "Id", "CodigoDetalle", "HistorialClinicoId", "AtencionId", "TipoMovimiento", 
+        "Titulo", "Descripcion", "FechaRegistro", "UsuarioId"
+    ) VALUES (
+        gen_random_uuid(), v_codigo_det, v_historial_id, v_atencion_id, 'AtencionRegistrada',
+        'Evaluación Psicológica Inicial Completada', 
+        'Se completó el registro de la evolución de salud mental unificada.', 
+        NOW(), v_usuario_id
+    );
+
+    RAISE NOTICE '¡Éxito Absoluto! Fila de pago parchada con MetodoPago de manera exitosa.';
+END $$;

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using psicomedixMonolito.DbFiles.Data;
+using psicomedixMonolito.DbFiles.Data.Seeds;
 using psicomedixMonolito.Services;
 using psicomedixMonolito.Services.ATENCIONES;
 using psicomedixMonolito.Services.Background;
@@ -39,30 +40,43 @@ builder.Services.AddControllers(options =>
 });
 
 // Respuestas de validación del modelo personalizadas
-builder.Services.Configure<ApiBehaviorOptions>(options => {
-    // Vincula tu clase de configuración estática del monolito
-    // ValidationResponseConfig.ConfigurarRespuestasDeValidacion
-});
-
-builder.Services.AddEndpointsApiExplorer();
-
-// ==========================================================
-// CONFIGURACIÓN DE SWAGGER (DOCUMENTACIÓN XML)
-// ==========================================================
-builder.Services.AddSwaggerGen(c =>
+builder.Services.AddSwaggerGen(options =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "Psicomedix API",
+    options.SwaggerDoc("v1", new OpenApiInfo 
+    { 
+        Title = "Psicomedix Monolito API", 
         Version = "v1",
-        Description = "API del Sistema Monolítico Integral de Gestión Clínica - Psicomedix."
+        Description = "Documentación de endpoints clínicos protegidos para Psicomedix"
     });
 
-    // Inclusión nativa de comentarios XML de los controladores para la documentación de la API
-    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    if (File.Exists(xmlPath))
-        c.IncludeXmlComments(xmlPath);
+    // 1. Definir cómo se llamará y dónde se guardará el Token (Cabecera HTTP Authorization)
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Autenticación basada en JWT. Ingresa la palabra 'Bearer' seguida de un espacio y tu token.\r\n\r\nEjemplo: \"Bearer eyJhbGciOiJIUzI1Ni...\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    // 2. Indicar a Swagger que aplique este candado de forma global a todos los endpoints protegidos
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = ParameterLocation.Header
+            },
+            new List<string>()
+        }
+    });
 });
 
 builder.Services.AddHttpContextAccessor();
@@ -131,13 +145,8 @@ builder.Services.AddScoped<IPagoService, PagoService>();
 builder.Services.AddScoped<IFinanzasService, FinanzasService>();
 builder.Services.AddScoped<IComprobanteService, ComprobanteService>();
 
-// --- SERVICIOS MÓDULOS OBSTÉTRICOS (ACCESO DIRECTO A CONTEXTO) ---
-// Nota: Si Anamnesis comparte esta estructura directa, se inyecta igual que los demás:
-// builder.Services.AddScoped<IAnamnesisService, AnamnesisService>(); 
-builder.Services.AddScoped<IExamenFisicoService, ExamenFisicoService>();
-builder.Services.AddScoped<ITactoVaginalService, TactoVaginalService>();
-builder.Services.AddScoped<IEcografiaObstetricaService, EcografiaObstetricaService>();
-builder.Services.AddScoped<IImpresionDiagnosticaService, ImpresionDiagnosticaService>();
+// --- SERVICIOS MÓDULOS psicologicos (ACCESO DIRECTO A CONTEXTO) ---
+builder.Services.AddScoped<IPsicoFormularioService, PsicoFormularioService>();
 
 // --- UTILERÍAS PURAS DE GENERACIÓN DE DOCUMENTOS PDF (QUESTPDF) ---
 builder.Services.AddScoped<IComprobantePdfService, ComprobantePdfService>();
@@ -253,9 +262,21 @@ app.MapHub<ChatHub>("/chathub");
 // ==========================================================
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    // Lógica del DataSeeder adaptada al contexto del monolito unificado
-    // await DataSeeder.SeedAsync(context);
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        
+        // Ejecuta las inserciones automáticas de Permisos, Usuarios, Pacientes y Citas
+        await DataSeeder.SeedAsync(context);
+        
+        Console.WriteLine("¡Fichas clínicas y datos de prueba sembrados con éxito!");
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Ocurrió un fallo crítico al intentar sembrar la data de Psicomedix.");
+    }
 }
 
 app.Run();

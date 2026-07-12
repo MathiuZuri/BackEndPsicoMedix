@@ -6,7 +6,6 @@ namespace psicomedixMonolito.DbFiles.Data.Configurations;
 
 public class NotificacionCitaConfiguration : IEntityTypeConfiguration<NotificacionCita>
 {
-    // esto es exclusivo de evolution api, no incluir al sistema
     public void Configure(EntityTypeBuilder<NotificacionCita> builder)
     {
         builder.ToTable("NotificacionesCitas");
@@ -43,19 +42,14 @@ public class NotificacionCitaConfiguration : IEntityTypeConfiguration<Notificaci
             .HasForeignKey(x => x.CitaId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Enlace bidireccional armónico con la colección de la entidad Paciente
         builder.HasOne(x => x.Paciente)
             .WithMany(x => x.NotificacionesCita)
             .HasForeignKey(x => x.PacienteId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.CitaId);
-
         builder.HasIndex(x => x.PacienteId);
-
-        builder.HasIndex(x => new
-        {
-            x.Estado,
-            x.FechaProgramadaEnvio
-        });
+        builder.HasIndex(x => new { x.Estado, x.FechaProgramadaEnvio });
     }
 }
