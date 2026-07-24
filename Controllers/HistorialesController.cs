@@ -68,4 +68,6 @@ public class HistorialesController : ControllerBase
             throw new KeyNotFoundException("Historial clínico no encontrado.");
         return Ok(ApiResponse<object>.Ok(historial, "Historial clínico con detalles obtenido correctamente."));
     }
+    
+    
 }

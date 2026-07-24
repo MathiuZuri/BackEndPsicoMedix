@@ -184,10 +184,12 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(
                 "https://localhost:7299",
                 "http://localhost:5091",
-                "https://salmon-bush-08c1e7510.7.azurestaticapps.net" 
+                "https://salmon-bush-08c1e7510.7.azurestaticapps.net",
+                "http://localhost:4200"  //se registro para conexion con angular en su ruta del localhost por defecto
             )
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();  // autenticacion por credenciales
     });
 });
 
@@ -249,7 +251,8 @@ else
 }
 
 app.UseHttpsRedirection();
-app.UseCors("PermitirBlazor");
+app.UseCors("PermitirBlazor");  
+
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -13,7 +13,7 @@ public class AtencionResponseDto
     public string DoctorNombre { get; set; } = string.Empty;
     public Guid ServicioClinicoId { get; set; }
     public string ServicioNombre { get; set; } = string.Empty;
-    public Guid? CitaId { get; set; }
+    public Guid? CitaId { get; set; } 
     public Guid HistorialClinicoId { get; set; }
     public DateTime FechaInicio { get; set; }
     public DateTime? FechaCierre { get; set; }
